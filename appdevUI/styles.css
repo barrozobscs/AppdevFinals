@@ -101,3 +101,32 @@ body{background:linear-gradient(180deg,#f8f8f5 0,#f5f7f8 100%);letter-spacing:0}
 .mastery.weak{color:#a54e51}
 .mastery.developing{color:#86651f}
 .mastery.mastered{color:#347453}
+
+/* Empty states, reviewer modes, and roadmap controls. */
+.table-empty{display:grid;gap:4px;justify-items:center;padding:24px 12px;text-align:center;color:var(--muted)}
+.table-empty strong{color:#425a70;font-size:11px}
+.table-empty span,.chart-empty{font-size:10px}
+.empty-state{max-width:650px;margin:24px auto;padding:36px 22px;text-align:center}
+.empty-state h2{margin:8px 0;color:var(--navy)}
+.empty-state p{max-width:430px;margin:0 auto 18px;color:var(--muted);font-size:11px;line-height:1.65}
+.empty-mark{display:grid;place-items:center;width:38px;height:38px;margin:auto;border-radius:50%;background:#edf3f8;color:var(--blue);font-size:22px}
+.consent-row{display:flex;align-items:flex-start;gap:8px;margin:13px 0;color:#5b6d7d;font-size:10px;line-height:1.5}
+.consent-row input{margin:2px 0 0;accent-color:var(--blue);flex:none}
+.review-tabs{display:flex;gap:16px;margin:10px 0 14px;border-bottom:1px solid var(--line)}
+.review-tabs button{padding:8px 2px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-size:10px;font-weight:700}
+.review-tabs button.active{border-color:var(--blue);color:var(--blue)}
+.flashcard-area{display:grid;justify-items:center;gap:12px;padding:22px 10px}
+.flashcard-count{color:var(--muted);font-size:9px;font-weight:700;letter-spacing:.08em}
+.flashcard{display:grid;align-content:center;justify-items:center;gap:14px;width:min(100%,430px);min-height:205px;padding:25px;border:1px solid #cbd9e5;border-radius:5px;background:#fff;color:var(--navy);text-align:center;box-shadow:0 5px 16px #183c650b}
+.flashcard.revealed{background:#eef4f8}
+.flashcard-face-label{color:var(--blue);font-size:9px;font-weight:700;letter-spacing:.1em}
+.flashcard strong{font:500 20px/1.4 Georgia,'Times New Roman',serif}
+.flashcard small{color:var(--muted);font-size:10px}
+.flashcard-controls{display:flex;gap:8px}
+.step-status-select{min-height:30px;padding:4px 8px;border:1px solid #d2dce6;border-radius:4px;background:#fff;color:#526372;font-size:10px}
+.accuracy-cell{display:flex;align-items:center;gap:8px;min-width:76px}
+.accuracy-cell .mini-bar{width:48px;flex:none}
+.chart-empty{display:grid;min-height:125px;place-items:center;padding:15px;color:var(--muted);text-align:center}
+.history-card{margin-top:15px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:700px){.step-actions{align-items:center}.flashcard{min-height:175px}.flashcard strong{font-size:17px}}

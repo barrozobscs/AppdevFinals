@@ -375,6 +375,7 @@ CREATE TABLE `user` (
   `email` varchar(254) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
   `date_registered` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `privacy_consent_at` datetime DEFAULT NULL,
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `uq_user_email` (`email`),
   KEY `idx_user_full_name` (`full_name`)
@@ -387,7 +388,7 @@ CREATE TABLE `user` (
 
 LOCK TABLES `user` WRITE;
 /*!40000 ALTER TABLE `user` DISABLE KEYS */;
-INSERT INTO `user` VALUES (1,'John Doe','johndoe.test@example.com','$2b$12$abcdefghijklmnopqrstuu12345678901234567890123456789012','2026-11-15 17:56:41');
+INSERT INTO `user` (`user_id`, `full_name`, `email`, `password_hash`, `date_registered`) VALUES (1,'John Doe','johndoe.test@example.com','$2b$12$abcdefghijklmnopqrstuu12345678901234567890123456789012','2026-11-15 17:56:41');
 /*!40000 ALTER TABLE `user` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -436,3 +437,17 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2026-11-15 18:48:17
+
+-- OAuth provider identities for Google and Facebook sign-in.
+CREATE TABLE IF NOT EXISTS `oauth_identity` (
+  `oauth_identity_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned NOT NULL,
+  `provider` varchar(30) NOT NULL,
+  `provider_user_id` varchar(191) NOT NULL,
+  `email` varchar(254) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`oauth_identity_id`),
+  UNIQUE KEY `uq_oauth_provider_user` (`provider`, `provider_user_id`),
+  KEY `idx_oauth_identity_user` (`user_id`),
+  CONSTRAINT `fk_oauth_identity_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

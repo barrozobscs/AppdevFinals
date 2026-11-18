@@ -1324,7 +1324,8 @@ app.get('/api/db-check', async (_req, res) => {
   }
 });
 
-app.use(express.static(__dirname));
+app.use('/uploads', express.static(uploadDirectory));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const tlsKeyPath = process.env.HTTPS_KEY_PATH;
 const tlsCertPath = process.env.HTTPS_CERT_PATH;

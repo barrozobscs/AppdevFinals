@@ -113,11 +113,12 @@ function welcome() {
 function fileRow(material) {
   const statusClass = material.status === 'Ready' ? '' : material.status.toLowerCase();
   let actions = material.status === 'Ready'
-    ? `<button class="link-button" data-action="open-reviewer" data-id="${esc(material.id)}">View reviewer</button><span class="muted">·</span><button class="link-button" data-action="open-quiz" data-id="${esc(material.id)}">Take quiz</button>`
+    ? `<button class="link-button" data-action="open-reviewer" data-id="${esc(material.id)}">View reviewer</button><button class="link-button" data-action="open-quiz" data-id="${esc(material.id)}">Take quiz</button>`
     : material.status === 'Failed'
       ? `<button class="button small secondary" data-action="retry" data-id="${esc(material.id)}">Retry</button>`
       : `<button class="button small secondary" data-action="process-material" data-id="${esc(material.id)}">Extract text</button>`;
-  return `<tr><td class="filename">${esc(material.name)}</td><td>${esc(material.type)}</td><td>${dateLabel(material.uploaded)}</td><td><span class="badge ${statusClass}">${esc(material.status)}</span></td><td>${material.topics || '—'}</td><td>${actions}</td></tr>`;
+  actions += `<button class="link-button delete-material" data-action="delete-material" data-id="${esc(material.id)}">Delete</button>`;
+  return `<tr><td class="filename">${esc(material.name)}</td><td>${esc(material.type)}</td><td>${dateLabel(material.uploaded)}</td><td><span class="badge ${statusClass}">${esc(material.status)}</span></td><td>${Number(material.topics) || 0}</td><td><div class="material-actions">${actions}</div></td></tr>`;
 }
 
 function materials() {
@@ -189,7 +190,7 @@ function quiz() {
   const totalPoints = questionSet.reduce((sum, item) => sum + (item.points || 2), 0);
   const answered = Object.keys(state.answers).length;
   const selected = state.answers[state.question];
-  return shell(`${pageTitle('Quiz',`${esc(material.name)} · ${questionSet.length} questions · ${totalPoints} points`)}<article class="card quiz-summary"><div class="quiz-meta"><div><strong class="quiz-name">Material recall quiz</strong><div class="small-text">Questions based on extracted study text</div></div><span class="badge">Elapsed <span id="timer">${timerText()}</span></span></div><div class="quiz-meta quiz-progress-label"><span class="small-text">Question ${state.question + 1} of ${questionSet.length}</span><span class="small-text">${Math.round((state.question + 1) / questionSet.length * 100)}%</span></div><div class="quiz-progress"><i style="width:${(state.question + 1) / questionSet.length * 100}%"></i></div></article><div class="grid quiz-layout"><article class="card question-card"><div class="question-label"><span>Multiple choice</span><span>${q.points || 2} points</span><span>${esc(q.topicName || `Topic ${q.topic}`)}</span></div><h2 class="question-text">${esc(q.text)}</h2><div class="answers">${q.options.map((option, i) => `<label class="answer-option ${selected === i ? 'selected' : ''}"><input type="radio" name="answer" value="${i}" ${selected === i ? 'checked' : ''}><span>${String.fromCharCode(65 + i)}. ${esc(option)}</span></label>`).join('')}</div><div class="question-controls"><button class="button secondary" data-action="previous" ${state.question === 0 ? 'disabled' : ''}>← Previous</button><button class="button" data-action="next">${state.question === questionSet.length - 1 ? 'Review answers' : 'Next →'}</button></div></article><aside class="card"><div class="card-title"><h2>Questions</h2><span class="small-text">${answered} answered</span></div><div class="question-grid">${questionSet.map((_, i) => `<button class="question-number ${i === state.question ? 'current' : ''} ${state.answers[i] !== undefined ? 'answered' : ''}" data-question="${i + 1}">${i + 1}</button>`).join('')}</div><div class="legend"><span><i class="answered"></i> Answered</span><span><i class="current"></i> Current</span><span><i class="empty"></i> Not answered</span></div><hr class="rule"><button class="button" style="width:100%" data-action="submit-quiz">Submit quiz</button></aside></div>`);
+  return shell(`${pageTitle('Quiz',`${esc(material.name)} · ${questionSet.length} questions · ${totalPoints} points`)}<article class="card quiz-summary"><div class="quiz-meta"><div><strong class="quiz-name">Material recall quiz</strong><div class="small-text">Questions based on extracted study text</div></div><span class="badge">Elapsed <span id="timer">${timerText()}</span></span></div><div class="quiz-meta quiz-progress-label"><span class="small-text">Question ${state.question + 1} of ${questionSet.length}</span><span class="small-text">${Math.round((state.question + 1) / questionSet.length * 100)}%</span></div><div class="quiz-progress"><i style="width:${(state.question + 1) / questionSet.length * 100}%"></i></div></article><div class="grid quiz-layout"><article class="card question-card"><div class="question-label"><span>Multiple choice</span><span>${q.points || 2} points</span><span>${esc(q.topicName || `Topic ${q.topic}`)}</span></div><h2 class="question-text">${esc(q.text)}</h2><div class="answers">${q.options.map((option, i) => `<label class="answer-option ${selected === i ? 'selected' : ''}"><input type="radio" name="answer" value="${i}" ${selected === i ? 'checked' : ''}><span>${String.fromCharCode(65 + i)}. ${esc(option)}</span></label>`).join('')}</div><div class="question-controls"><button class="button secondary" data-action="previous" ${state.question === 0 ? 'disabled' : ''}>← Previous</button><button class="button" data-action="next">${state.question === questionSet.length - 1 ? 'Submit quiz' : 'Next →'}</button></div></article><aside class="card"><div class="card-title"><h2>Questions</h2><span class="small-text">${answered} answered</span></div><div class="question-grid">${questionSet.map((_, i) => `<button class="question-number ${i === state.question ? 'current' : ''} ${state.answers[i] !== undefined ? 'answered' : ''}" data-question="${i + 1}">${i + 1}</button>`).join('')}</div><div class="legend"><span><i class="answered"></i> Answered</span><span><i class="current"></i> Current</span><span><i class="empty"></i> Not answered</span></div></aside></div>`);
 }
 
 function resultData(answerSet = state.answers, questionSet = activeQuestions()) {
@@ -535,6 +536,22 @@ async function uploadPending() {
     notify(error.message);
   }
 }
+async function deleteMaterial(id) {
+  const material = data.materials.find(item => item.id === id);
+  if (!material || !confirm(`Delete “${material.name}” and its reviewer, quiz attempts, and topic progress? This cannot be undone.`)) return;
+  try {
+    await apiRequest(`/api/materials/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const { materials } = await apiRequest('/api/materials');
+    data.materials = materials;
+    if (state.selectedMaterial === id) state.selectedMaterial = materials.find(item => item.status === 'Ready')?.id || materials[0]?.id || '';
+    state.studyGuide = null;
+    state.reviewerText = '';
+    await loadAccountProgress().catch(() => {});
+    save();
+    render();
+    notify('Material and its study records deleted.');
+  } catch (error) { notify(error.message); }
+}
 async function updateRoadmap() {
   try {
     const roadmap = await apiRequest('/api/roadmap/refresh', { method: 'POST' });
@@ -589,6 +606,7 @@ root.addEventListener('click', event => {
     case 'browse': root.querySelector('#file-picker')?.click(); break;
     case 'clear-files': state.pendingFiles = []; render(); break;
     case 'upload': uploadPending(); break;
+    case 'delete-material': deleteMaterial(action.dataset.id); break;
     case 'open-reviewer': openReviewer(action.dataset.id); break;
     case 'open-quiz': openQuiz(action.dataset.id); break;
     case 'retry': processMaterial(action.dataset.id); break;
@@ -601,7 +619,7 @@ root.addEventListener('click', event => {
     case 'flashcard-review': { const topic = state.studyGuide?.topics?.[state.topic - 1]; const count = topic ? topic.flashcards.length : (topicContent[state.topic] || topicContent[1]).points.length; state.flashcardIndex = (state.flashcardIndex + 1) % Math.max(1, count); state.flashcardRevealed = false; render(); break; }
     case 'flashcard-known': { const topic = state.studyGuide?.topics?.[state.topic - 1]; const count = topic ? topic.flashcards.length : (topicContent[state.topic] || topicContent[1]).points.length; const key = `${activeMaterial()?.id || 'none'}:${state.topic}`; const known = state.flashcardKnown[key] || []; if (!known.includes(state.flashcardIndex)) known.push(state.flashcardIndex); state.flashcardKnown[key] = known; state.flashcardIndex = (state.flashcardIndex + 1) % Math.max(1, count); state.flashcardRevealed = false; render(); break; }
     case 'previous': if (state.question > 0) { state.question--; render(); } break;
-    case 'next': if (state.question < activeQuestions().length - 1) { state.question++; render(); } else notify('Review your answers or submit the quiz.'); break;
+    case 'next': if (state.question < activeQuestions().length - 1) { state.question++; render(); } else submitQuiz(); break;
     case 'submit-quiz': submitQuiz(); break;
     case 'toggle-answers': state.showAllAnswers = !state.showAllAnswers; render(); break;
     case 'retake': openQuiz(); break;

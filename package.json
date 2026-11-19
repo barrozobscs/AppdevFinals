@@ -19,7 +19,6 @@
     "fast-xml-parser": "^5.12.1",
     "multer": "^2.5.0",
     "mysql2": "^3.24.6",
-    "nodemailer": "^10.6.0",
     "openai": "^7.57.0",
     "passport": "^0.7.0",
     "passport-facebook": "^3.0.0",

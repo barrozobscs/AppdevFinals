@@ -452,21 +452,3 @@ CREATE TABLE IF NOT EXISTS `oauth_identity` (
   KEY `idx_oauth_identity_user` (`user_id`),
   CONSTRAINT `fk_oauth_identity_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- Short-lived email codes for verifying new email/password registrations.
-CREATE TABLE IF NOT EXISTS `email_registration_verification` (
-  `email_verification_id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `email` varchar(254) NOT NULL,
-  `full_name` varchar(200) NOT NULL,
-  `password_hash` varchar(255) NOT NULL,
-  `privacy_consent_at` datetime NOT NULL,
-  `code_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-  `expires_at` datetime NOT NULL,
-  `attempts` tinyint unsigned NOT NULL DEFAULT '0',
-  `send_count` tinyint unsigned NOT NULL DEFAULT '1',
-  `window_started_at` datetime NOT NULL,
-  `last_sent_at` datetime NOT NULL,
-  PRIMARY KEY (`email_verification_id`),
-  UNIQUE KEY `uq_email_registration_verification_email` (`email`),
-  KEY `idx_email_registration_verification_expiry` (`expires_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

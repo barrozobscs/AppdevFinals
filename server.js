@@ -14,7 +14,6 @@ const pdfParse = require('pdf-parse');
 const { createWorker } = require('tesseract.js');
 const OpenAI = require('openai');
 const passport = require('passport');
-const nodemailer = require('nodemailer');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const { Strategy: FacebookStrategy } = require('passport-facebook');
 require('dotenv').config();
@@ -100,77 +99,6 @@ function ensurePrivacyConsentColumn() {
     });
   }
   return privacyConsentColumnPromise;
-}
-
-let emailVerificationTablePromise;
-function ensureEmailVerificationTable() {
-  if (!emailVerificationTablePromise) {
-    emailVerificationTablePromise = pool.query(`CREATE TABLE IF NOT EXISTS email_registration_verification (
-      email_verification_id bigint unsigned NOT NULL AUTO_INCREMENT,
-      email varchar(254) NOT NULL,
-      full_name varchar(200) NOT NULL,
-      password_hash varchar(255) NOT NULL,
-      privacy_consent_at datetime NOT NULL,
-      code_hash char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-      expires_at datetime NOT NULL,
-      attempts tinyint unsigned NOT NULL DEFAULT 0,
-      send_count tinyint unsigned NOT NULL DEFAULT 1,
-      window_started_at datetime NOT NULL,
-      last_sent_at datetime NOT NULL,
-      PRIMARY KEY (email_verification_id),
-      UNIQUE KEY uq_email_registration_verification_email (email),
-      KEY idx_email_registration_verification_expiry (expires_at)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`).catch(error => {
-      emailVerificationTablePromise = null;
-      throw error;
-    });
-  }
-  return emailVerificationTablePromise;
-}
-
-const registrationCodeRequests = new Map();
-function allowRegistrationCodeRequest(ip) {
-  const now = Date.now();
-  const key = String(ip || 'unknown');
-  const current = registrationCodeRequests.get(key);
-  if (!current || now - current.windowStartedAt >= 15 * 60 * 1000) {
-    registrationCodeRequests.set(key, { windowStartedAt: now, count: 1 });
-  } else if (current.count >= 8) {
-    return false;
-  } else {
-    current.count += 1;
-  }
-  if (registrationCodeRequests.size > 1000) {
-    for (const [storedIp, entry] of registrationCodeRequests) {
-      if (now - entry.windowStartedAt >= 15 * 60 * 1000) registrationCodeRequests.delete(storedIp);
-    }
-  }
-  return true;
-}
-
-function registrationCodeHash(email, code) {
-  const secret = process.env.EMAIL_VERIFICATION_SECRET;
-  if (!secret) throw new Error('EMAIL_VERIFICATION_SECRET is not configured.');
-  return crypto.createHmac('sha256', secret).update(`${email}:${code}`).digest('hex');
-}
-
-function createMailTransporter() {
-  const { SMTP_HOST, SMTP_USER, SMTP_PASS } = process.env;
-  const port = Number(process.env.SMTP_PORT || 587);
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !process.env.EMAIL_VERIFICATION_SECRET || !Number.isInteger(port)) {
-    const error = new Error('Email verification is not configured.');
-    error.code = 'EMAIL_VERIFICATION_NOT_CONFIGURED';
-    throw error;
-  }
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port,
-    secure: process.env.SMTP_SECURE === 'true' || port === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-  });
 }
 const slideXmlParser = new XMLParser({ ignoreAttributes: true, removeNSPrefix: true, parseTagValue: false, trimValues: true });
 const quizTopics = [
@@ -1354,175 +1282,33 @@ app.get('/auth/facebook/callback', (req, res, next) => {
   })(req, res, next);
 });
 
-app.post('/api/register/send-code', async (req, res) => {
+app.post('/api/register', async (req, res) => {
   const fullName = String(req.body.fullName || '').trim();
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
   const privacyConsent = req.body.privacyConsent === true;
   if (!privacyConsent) return res.status(400).json({ error: 'Accept the privacy notice before creating an account.' });
-  if (!fullName || fullName.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || password.length < 8) {
+  if (!fullName || !email || password.length < 8) {
     return res.status(400).json({ error: 'Enter your name, a valid email, and a password with at least 8 characters.' });
   }
-  let transporter;
-  try { transporter = createMailTransporter(); }
-  catch (error) {
-    if (error.code === 'EMAIL_VERIFICATION_NOT_CONFIGURED') {
-      return res.status(503).json({ error: 'Email verification is not configured yet. Please try again later.' });
-    }
-    throw error;
-  }
-  if (!allowRegistrationCodeRequest(req.ip)) {
-    return res.status(429).json({ error: 'Too many verification requests. Wait 15 minutes and try again.' });
-  }
 
-  let connection;
   try {
     await ensurePrivacyConsentColumn();
     await ensureProfilePictureColumn();
-    await ensureEmailVerificationTable();
-    const [existingUsers] = await pool.execute('SELECT user_id FROM `user` WHERE email = ? LIMIT 1', [email]);
-    if (existingUsers.length) return res.status(409).json({ error: 'An account with this email already exists. Try logging in.' });
-
     const passwordHash = await bcrypt.hash(password, 12);
-    const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
-    const codeHash = registrationCodeHash(email, code);
-    connection = await pool.getConnection();
-    await connection.beginTransaction();
-    const [pending] = await connection.execute(
-      `SELECT email_verification_id, send_count,
-              last_sent_at > DATE_SUB(NOW(), INTERVAL 60 SECOND) AS resend_wait,
-              window_started_at > DATE_SUB(NOW(), INTERVAL 1 HOUR) AS same_window
-       FROM email_registration_verification WHERE email = ? LIMIT 1 FOR UPDATE`,
-      [email]
+    const [result] = await pool.execute(
+      'INSERT INTO `user` (full_name, email, password_hash, privacy_consent_at) VALUES (?, ?, ?, NOW())',
+      [fullName, email, passwordHash]
     );
-    if (pending.length && pending[0].resend_wait) {
-      await connection.rollback();
-      return res.status(429).json({ error: 'Please wait a minute before requesting another code.' });
-    }
-    if (pending.length && pending[0].same_window && Number(pending[0].send_count) >= 5) {
-      await connection.rollback();
-      return res.status(429).json({ error: 'Too many codes were sent to this email. Try again in an hour.' });
-    }
-    if (pending.length) {
-      await connection.execute(
-        `UPDATE email_registration_verification
-         SET full_name = ?, password_hash = ?, privacy_consent_at = NOW(), code_hash = ?,
-             expires_at = DATE_ADD(NOW(), INTERVAL 10 MINUTE), attempts = 0,
-             send_count = IF(window_started_at > DATE_SUB(NOW(), INTERVAL 1 HOUR), send_count + 1, 1),
-             window_started_at = IF(window_started_at > DATE_SUB(NOW(), INTERVAL 1 HOUR), window_started_at, NOW()),
-             last_sent_at = NOW()
-         WHERE email_verification_id = ?`,
-        [fullName, passwordHash, codeHash, pending[0].email_verification_id]
-      );
-    } else {
-      await connection.execute(
-        `INSERT INTO email_registration_verification
-          (email, full_name, password_hash, privacy_consent_at, code_hash, expires_at, attempts, send_count, window_started_at, last_sent_at)
-         VALUES (?, ?, ?, NOW(), ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE), 0, 1, NOW(), NOW())`,
-        [email, fullName, passwordHash, codeHash]
-      );
-    }
-    await connection.commit();
-
-    try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || process.env.SMTP_USER,
-        to: email,
-        subject: 'Your PacePath verification code',
-        text: `Your PacePath verification code is ${code}. It expires in 10 minutes. If you did not request this code, you can ignore this email.`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#16324b"><h2>Verify your email for PacePath</h2><p>Enter this code to finish creating your account:</p><p style="font-size:30px;font-weight:bold;letter-spacing:8px;color:#174b85">${code}</p><p>This code expires in 10 minutes. If you did not request it, you can ignore this email.</p></div>`,
-      });
-    } catch (error) {
-      await pool.execute('DELETE FROM email_registration_verification WHERE email = ? AND code_hash = ?', [email, codeHash]);
-      console.error('Sending email verification code failed:', error.message);
-      return res.status(502).json({ error: 'Could not send the verification email. Check the email service settings and try again.' });
-    }
-    res.json({ sent: true, email, expiresIn: 600 });
+    const user = { id: result.insertId, fullName, email };
+    req.session.user = user;
+    res.status(201).json({ user });
   } catch (error) {
-    if (connection) await connection.rollback().catch(() => {});
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: 'An account with that email already exists.' });
     }
-    console.error('Preparing email verification failed:', error.message);
-    res.status(500).json({ error: 'Could not prepare email verification. Please try again.' });
-  } finally {
-    connection?.release();
-  }
-});
-
-app.post('/api/register/verify-code', async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
-  const code = String(req.body.code || '').trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{6}$/.test(code)) {
-    return res.status(400).json({ error: 'Enter the six-digit code sent to your email.' });
-  }
-  let connection;
-  try {
-    await ensurePrivacyConsentColumn();
-    await ensureProfilePictureColumn();
-    await ensureEmailVerificationTable();
-    connection = await pool.getConnection();
-    await connection.beginTransaction();
-    const [pending] = await connection.execute(
-      `SELECT email_verification_id, full_name, password_hash, code_hash, expires_at, attempts,
-              expires_at <= NOW() AS is_expired
-       FROM email_registration_verification WHERE email = ? LIMIT 1 FOR UPDATE`,
-      [email]
-    );
-    if (!pending.length) {
-      await connection.rollback();
-      return res.status(400).json({ error: 'No active verification code was found. Request a new code.' });
-    }
-    const verification = pending[0];
-    if (verification.is_expired) {
-      await connection.execute('DELETE FROM email_registration_verification WHERE email_verification_id = ?', [verification.email_verification_id]);
-      await connection.commit();
-      return res.status(410).json({ error: 'That code expired. Request a new one.' });
-    }
-    if (Number(verification.attempts) >= 5) {
-      await connection.rollback();
-      return res.status(429).json({ error: 'Too many incorrect codes. Request a new one.' });
-    }
-    const submittedHash = Buffer.from(registrationCodeHash(email, code), 'hex');
-    const storedHash = Buffer.from(verification.code_hash, 'hex');
-    if (submittedHash.length !== storedHash.length || !crypto.timingSafeEqual(submittedHash, storedHash)) {
-      await connection.execute(
-        'UPDATE email_registration_verification SET attempts = attempts + 1 WHERE email_verification_id = ?',
-        [verification.email_verification_id]
-      );
-      await connection.commit();
-      return res.status(400).json({ error: 'That code is incorrect. Check the email and try again.' });
-    }
-
-    const [existingUsers] = await connection.execute('SELECT user_id FROM `user` WHERE email = ? LIMIT 1 FOR UPDATE', [email]);
-    if (existingUsers.length) {
-      await connection.execute('DELETE FROM email_registration_verification WHERE email_verification_id = ?', [verification.email_verification_id]);
-      await connection.commit();
-      return res.status(409).json({ error: 'An account with this email already exists. Try logging in.' });
-    }
-    const [created] = await connection.execute(
-      'INSERT INTO `user` (full_name, email, password_hash, privacy_consent_at) VALUES (?, ?, ?, NOW())',
-      [verification.full_name, email, verification.password_hash]
-    );
-    await connection.execute('DELETE FROM email_registration_verification WHERE email_verification_id = ?', [verification.email_verification_id]);
-    await connection.commit();
-
-    const user = { id: created.insertId, fullName: verification.full_name, email, profilePicture: null };
-    req.session.regenerate(error => {
-      if (error) return res.status(500).json({ error: 'Your account was created, but sign-in could not start. Please log in.' });
-      req.session.user = user;
-      req.session.save(saveError => {
-        if (saveError) return res.status(500).json({ error: 'Your account was created, but sign-in could not start. Please log in.' });
-        res.status(201).json({ user });
-      });
-    });
-  } catch (error) {
-    if (connection) await connection.rollback().catch(() => {});
-    if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'An account with this email already exists. Try logging in.' });
-    console.error('Verifying registration email failed:', error.message);
-    res.status(500).json({ error: 'Could not verify the email and create the account. Please try again.' });
-  } finally {
-    connection?.release();
+    console.error('Registration failed:', error.message);
+    res.status(500).json({ error: 'Could not create the account. Check the server log.' });
   }
 });
 

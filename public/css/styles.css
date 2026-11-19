@@ -254,5 +254,3 @@ body{background:var(--app-background) fixed;color:#f4fbff}
 .material-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:215px}
 .table .delete-material{color:#b54747}
 .table .delete-material:hover{color:#8f2525;text-decoration:underline}
-.email-verification-step{margin-top:16px;padding:16px;border:1px solid #d5e0e9;border-radius:10px;background:#f7fafc}
-.email-verification-step[hidden]{display:none!important}

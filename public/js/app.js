@@ -28,7 +28,6 @@ const state = {
 };
 
 let pendingProfilePicture = null;
-let registrationCodeSent = false;
 const root = document.querySelector('#app');
 const toastEl = document.querySelector('#toast');
 
@@ -295,26 +294,9 @@ function roadmap() {
 
 function render() {
   if (state.screen === 'welcome') { root.innerHTML = welcome(); return; }
-  if (state.screen === 'auth') {
-    root.innerHTML = authPage();
-    registrationCodeSent = false;
-    attachRegistrationVerificationStep();
-    return;
-  }
+  if (state.screen === 'auth') { root.innerHTML = authPage(); return; }
   const pages = { materials, reviewer, quiz, results, gaps: gapScreen, roadmap, profile: profilePage };
   root.innerHTML = (pages[state.screen] || materials)();
-}
-function attachRegistrationVerificationStep() {
-  const form = root.querySelector('#register-form');
-  const submit = form?.querySelector('button[type="submit"]');
-  if (!form || !submit) return;
-  submit.textContent = 'Send verification code';
-  const step = document.createElement('section');
-  step.className = 'email-verification-step';
-  step.id = 'registration-verification-step';
-  step.hidden = true;
-  step.innerHTML = `<h3>Check your email</h3><p class="small-text">We sent a six-digit code to <strong id="registration-code-email"></strong>. It expires in 10 minutes.</p><div class="field"><label for="registration-code">Verification code</label><input id="registration-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code" disabled required></div><div class="grid" style="grid-template-columns:1fr 1fr;gap:10px"><button type="button" class="button secondary" data-action="resend-registration-code">Resend code</button><button type="button" class="button secondary" data-action="edit-registration-details">Edit details</button></div>`;
-  submit.after(step);
 }
 function go(screen) {
   if (screen === 'quiz' && state.screen !== 'quiz') { state.startedAt = Date.now(); state.question = 0; state.answers = {}; state.showAllAnswers = false; }
@@ -618,18 +600,6 @@ root.addEventListener('click', event => {
       window.location.assign(`/auth/${action.dataset.provider.toLowerCase()}`);
       break;
     }
-    case 'resend-registration-code': requestRegistrationCode(true); break;
-    case 'edit-registration-details': {
-      registrationCodeSent = false;
-      const codeStep = root.querySelector('#registration-verification-step');
-      const submit = root.querySelector('#register-form button[type="submit"]');
-      const codeInput = root.querySelector('#registration-code');
-      if (codeStep) codeStep.hidden = true;
-      if (submit) submit.textContent = 'Send verification code';
-      if (codeInput) { codeInput.value = ''; codeInput.disabled = true; }
-      root.querySelectorAll('#register-name, #register-email, #register-password, #register-confirm, #privacy-consent').forEach(input => { input.disabled = false; });
-      break;
-    }
     case 'browse': root.querySelector('#file-picker')?.click(); break;
     case 'clear-files': state.pendingFiles = []; render(); break;
     case 'upload': uploadPending(); break;
@@ -690,50 +660,13 @@ root.addEventListener('submit', event => {
     const email = root.querySelector('#register-email').value.trim();
     const password = root.querySelector('#register-password').value;
     const confirmPassword = root.querySelector('#register-confirm').value;
-    if (!registrationCodeSent) {
-      if (password !== confirmPassword) { notify('Passwords do not match.'); return; }
-      if (!root.querySelector('#privacy-consent').checked) { notify('Please review and accept the privacy notice.'); return; }
-      requestRegistrationCode(false);
-      return;
-    }
-    const code = root.querySelector('#registration-code').value.trim();
-    const submit = root.querySelector('#register-form button[type="submit"]');
-    if (submit) submit.disabled = true;
-    apiRequest('/api/register/verify-code', { method: 'POST', body: JSON.stringify({ email, code }) })
-      .then(({ user }) => { registrationCodeSent = false; enterAccount(user); })
-      .catch(error => notify(error.message))
-      .finally(() => { if (submit) submit.disabled = false; });
+    if (password !== confirmPassword) { notify('Passwords do not match.'); return; }
+    if (!root.querySelector('#privacy-consent').checked) { notify('Please review and accept the privacy notice.'); return; }
+    apiRequest('/api/register', { method: 'POST', body: JSON.stringify({ fullName: name, email, password, privacyConsent: true }) })
+      .then(({ user }) => enterAccount(user))
+      .catch(error => notify(error.message));
   }
 });
-
-async function requestRegistrationCode(isResend) {
-  const form = root.querySelector('#register-form');
-  if (!form) return;
-  const fullName = root.querySelector('#register-name').value.trim();
-  const email = root.querySelector('#register-email').value.trim();
-  const password = root.querySelector('#register-password').value;
-  const submit = form.querySelector('button[type="submit"]');
-  if (submit) submit.disabled = true;
-  try {
-    await apiRequest('/api/register/send-code', {
-      method: 'POST',
-      body: JSON.stringify({ fullName, email, password, privacyConsent: Boolean(root.querySelector('#privacy-consent')?.checked) }),
-    });
-    registrationCodeSent = true;
-    const codeStep = root.querySelector('#registration-verification-step');
-    const codeInput = root.querySelector('#registration-code');
-    if (codeStep) codeStep.hidden = false;
-    if (codeInput) { codeInput.disabled = false; codeInput.focus(); }
-    root.querySelectorAll('#register-name, #register-email, #register-password, #register-confirm, #privacy-consent').forEach(input => { input.disabled = true; });
-    root.querySelector('#registration-code-email').textContent = email;
-    if (submit) submit.textContent = 'Verify code & create account';
-    notify(isResend ? 'A new verification code was sent.' : 'Verification code sent. Check your inbox.');
-  } catch (error) {
-    notify(error.message);
-  } finally {
-    if (submit) submit.disabled = false;
-  }
-}
 
 root.addEventListener('submit', event => {
   if (event.target.id !== 'profile-form') return;

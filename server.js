@@ -625,7 +625,7 @@ if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
     clientSecret: process.env.FACEBOOK_APP_SECRET,
     callbackURL: `${appBaseUrl}/auth/facebook/callback`,
     graphAPIVersion: process.env.FACEBOOK_GRAPH_VERSION || 'v27.0',
-    profileFields: ['id', 'displayName', 'name', 'emails'],
+    profileFields: ['id', 'displayName', 'name', 'email'],
     state: true,
     passReqToCallback: true,
   }, (req, accessToken, refreshToken, profile, done) => {

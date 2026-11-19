@@ -543,13 +543,29 @@ function ensureOAuthIdentityTable() {
       user_id bigint unsigned NOT NULL,
       provider varchar(30) NOT NULL,
       provider_user_id varchar(191) NOT NULL,
-      email varchar(254) NOT NULL,
+      email varchar(254) NULL,
       created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (oauth_identity_id),
       UNIQUE KEY uq_oauth_provider_user (provider, provider_user_id),
       KEY idx_oauth_identity_user (user_id),
       CONSTRAINT fk_oauth_identity_user FOREIGN KEY (user_id) REFERENCES \`user\` (user_id) ON DELETE CASCADE ON UPDATE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`).catch(error => {
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci`).then(async () => {
+      const [userEmailColumns] = await pool.query(
+        `SELECT IS_NULLABLE FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'email'`
+      );
+      if (userEmailColumns[0]?.IS_NULLABLE === 'NO') {
+        await pool.query('ALTER TABLE `user` MODIFY COLUMN `email` varchar(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL');
+      }
+
+      const [identityEmailColumns] = await pool.query(
+        `SELECT IS_NULLABLE FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'oauth_identity' AND COLUMN_NAME = 'email'`
+      );
+      if (identityEmailColumns[0]?.IS_NULLABLE === 'NO') {
+        await pool.query('ALTER TABLE oauth_identity MODIFY COLUMN email varchar(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL');
+      }
+    }).catch(error => {
       oauthTablePromise = null;
       throw error;
     });
@@ -558,8 +574,11 @@ function ensureOAuthIdentityTable() {
 }
 
 async function findOrCreateOAuthUser(provider, profile, privacyConsentAccepted) {
-  const email = String(profile.emails?.[0]?.value || '').trim().toLowerCase();
-  if (!email) throw new Error(`${provider} did not provide an email address. Allow the email permission and try again.`);
+  const providerUserId = String(profile.id || '').trim();
+  if (!providerUserId) throw new Error(`${provider} did not provide an account ID.`);
+  const suppliedEmail = String(profile.emails?.[0]?.value || profile._json?.email || '').trim().toLowerCase();
+  const email = suppliedEmail || null;
+  if (provider === 'google' && !email) throw new Error('Google did not provide an email address. Choose a Google account with an email address.');
   if (provider === 'google' && profile._json?.email_verified !== true) {
     throw new Error('Google did not confirm this email address. Choose a verified Google account.');
   }
@@ -571,20 +590,26 @@ async function findOrCreateOAuthUser(provider, profile, privacyConsentAccepted) 
     await connection.beginTransaction();
     const [linked] = await connection.execute(
       'SELECT u.user_id, u.full_name, u.email, u.profile_picture FROM oauth_identity oi JOIN `user` u ON u.user_id = oi.user_id WHERE oi.provider = ? AND oi.provider_user_id = ? LIMIT 1 FOR UPDATE',
-      [provider, String(profile.id)]
+      [provider, providerUserId]
     );
     if (linked.length) {
       await connection.commit();
       return publicUser(linked[0]);
     }
     if (!privacyConsentAccepted) throw new Error('consent_required');
-    const [existing] = await connection.execute(
-      'SELECT user_id, full_name, email, profile_picture FROM `user` WHERE email = ? LIMIT 1 FOR UPDATE',
-      [email]
-    );
+    const [existing] = email
+      ? await connection.execute(
+        'SELECT user_id, full_name, email, profile_picture FROM `user` WHERE email = ? LIMIT 1 FOR UPDATE',
+        [email]
+      )
+      : [[]];
     let user = existing.length ? publicUser(existing[0]) : null;
     if (!user) {
-      const fullName = String(profile.displayName || [profile.name?.givenName, profile.name?.familyName].filter(Boolean).join(' ') || email.split('@')[0]).slice(0, 200);
+      const fullName = String(
+        profile.displayName
+        || [profile.name?.givenName, profile.name?.familyName].filter(Boolean).join(' ')
+        || (email ? email.split('@')[0] : `${provider} user`)
+      ).slice(0, 200);
       const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
       const [created] = await connection.execute(
         'INSERT INTO `user` (full_name, email, password_hash, privacy_consent_at) VALUES (?, ?, ?, NOW())',
@@ -596,7 +621,7 @@ async function findOrCreateOAuthUser(provider, profile, privacyConsentAccepted) 
     }
     await connection.execute(
       'INSERT INTO oauth_identity (user_id, provider, provider_user_id, email) VALUES (?, ?, ?, ?)',
-      [user.id, provider, String(profile.id), email]
+      [user.id, provider, providerUserId, email]
     );
     await connection.commit();
     return user;

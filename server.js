@@ -523,14 +523,6 @@ app.use(session({
 }));
 app.use(passport.initialize());
 
-app.post('/api/oauth-consent', (req, res) => {
-  req.session.oauthPrivacyConsent = req.body.accepted === true;
-  req.session.save(error => {
-    if (error) return res.status(500).json({ error: 'Could not save your privacy choice.' });
-    res.json({ accepted: req.session.oauthPrivacyConsent });
-  });
-});
-
 function publicUser(row) {
   return { id: row.user_id, fullName: row.full_name, email: row.email, profilePicture: row.profile_picture || null };
 }
@@ -573,7 +565,7 @@ function ensureOAuthIdentityTable() {
   return oauthTablePromise;
 }
 
-async function findOrCreateOAuthUser(provider, profile, privacyConsentAccepted) {
+async function findOrCreateOAuthUser(provider, profile) {
   const providerUserId = String(profile.id || '').trim();
   if (!providerUserId) throw new Error(`${provider} did not provide an account ID.`);
   const suppliedEmail = String(profile.emails?.[0]?.value || profile._json?.email || '').trim().toLowerCase();
@@ -596,7 +588,6 @@ async function findOrCreateOAuthUser(provider, profile, privacyConsentAccepted) 
       await connection.commit();
       return publicUser(linked[0]);
     }
-    if (!privacyConsentAccepted) throw new Error('consent_required');
     const [existing] = email
       ? await connection.execute(
         'SELECT user_id, full_name, email, profile_picture FROM `user` WHERE email = ? LIMIT 1 FOR UPDATE',
@@ -612,12 +603,10 @@ async function findOrCreateOAuthUser(provider, profile, privacyConsentAccepted) 
       ).slice(0, 200);
       const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
       const [created] = await connection.execute(
-        'INSERT INTO `user` (full_name, email, password_hash, privacy_consent_at) VALUES (?, ?, ?, NOW())',
+        'INSERT INTO `user` (full_name, email, password_hash, privacy_consent_at) VALUES (?, ?, ?, NULL)',
         [fullName, email, passwordHash]
       );
       user = { id: created.insertId, fullName, email, profilePicture: null };
-    } else {
-      await connection.execute('UPDATE `user` SET privacy_consent_at = COALESCE(privacy_consent_at, NOW()) WHERE user_id = ?', [user.id]);
     }
     await connection.execute(
       'INSERT INTO oauth_identity (user_id, provider, provider_user_id, email) VALUES (?, ?, ?, ?)',
@@ -641,7 +630,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     state: true,
     passReqToCallback: true,
   }, (req, accessToken, refreshToken, profile, done) => {
-    findOrCreateOAuthUser('google', profile, req.session?.oauthPrivacyConsent === true).then(user => done(null, user)).catch(done);
+    findOrCreateOAuthUser('google', profile).then(user => done(null, user)).catch(done);
   }));
 }
 if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
@@ -654,7 +643,7 @@ if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
     state: true,
     passReqToCallback: true,
   }, (req, accessToken, refreshToken, profile, done) => {
-    findOrCreateOAuthUser('facebook', profile, req.session?.oauthPrivacyConsent === true).then(user => done(null, user)).catch(done);
+    findOrCreateOAuthUser('facebook', profile).then(user => done(null, user)).catch(done);
   }));
 }
 
@@ -1269,7 +1258,6 @@ app.get('/auth/google', (req, res, next) => {
 app.get('/auth/google/callback', (req, res, next) => {
   passport.authenticate('google', { session: false }, (error, user) => {
     if (error || !user) {
-      if (error?.message === 'consent_required') return res.redirect('/?auth_error=consent_required');
       console.error('Google sign-in failed:', error?.message || 'No account was returned.');
       return res.redirect('/?auth_error=google_failed');
     }
@@ -1286,7 +1274,6 @@ app.get('/auth/facebook', (req, res, next) => {
 app.get('/auth/facebook/callback', (req, res, next) => {
   passport.authenticate('facebook', { session: false }, (error, user) => {
     if (error || !user) {
-      if (error?.message === 'consent_required') return res.redirect('/?auth_error=consent_required');
       console.error('Facebook sign-in failed:', error?.message || 'No account was returned.');
       return res.redirect('/?auth_error=facebook_failed');
     }

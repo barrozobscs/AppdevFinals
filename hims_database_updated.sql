@@ -372,7 +372,7 @@ DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
   `user_id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `full_name` varchar(200) NOT NULL,
-  `email` varchar(254) NOT NULL,
+  `email` varchar(254) DEFAULT NULL,
   `profile_picture` varchar(255) DEFAULT NULL,
   `password_hash` varchar(255) NOT NULL,
   `date_registered` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -445,7 +445,7 @@ CREATE TABLE IF NOT EXISTS `oauth_identity` (
   `user_id` bigint unsigned NOT NULL,
   `provider` varchar(30) NOT NULL,
   `provider_user_id` varchar(191) NOT NULL,
-  `email` varchar(254) NOT NULL,
+  `email` varchar(254) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`oauth_identity_id`),
   UNIQUE KEY `uq_oauth_provider_user` (`provider`, `provider_user_id`),

@@ -660,8 +660,18 @@ function publicMaterial(row) {
     type: extension || row.file_type,
     uploaded: new Date(row.upload_date).toISOString().slice(0, 10),
     status,
-    topics: 0,
+    topics: materialTopicCount(row),
   };
+}
+
+function materialTopicCount(row) {
+  if (row.reviewer_content) {
+    try {
+      const guide = JSON.parse(row.reviewer_content);
+      if (Array.isArray(guide.topics)) return guide.topics.length;
+    } catch {}
+  }
+  return Number(row.topic_count) || 0;
 }
 
 function beginProgressStream(res) {
@@ -686,13 +696,89 @@ function failProgress(res, message) {
 app.get('/api/materials', requireLogin, async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT material_id, file_name, file_type, upload_date, processing_status FROM material WHERE user_id = ? ORDER BY upload_date DESC, material_id DESC',
+      `SELECT m.material_id, m.file_name, m.file_type, m.upload_date, m.processing_status,
+              (SELECT r.content FROM reviewer r WHERE r.material_id = m.material_id ORDER BY r.generated_date DESC LIMIT 1) AS reviewer_content,
+              (SELECT COUNT(*) FROM topic_material tm WHERE tm.material_id = m.material_id) AS topic_count
+       FROM material m WHERE m.user_id = ? ORDER BY m.upload_date DESC, m.material_id DESC`,
       [req.session.user.id]
     );
     res.json({ materials: rows.map(publicMaterial) });
   } catch (error) {
     console.error('Loading materials failed:', error.message);
     res.status(500).json({ error: 'Could not load your materials.' });
+  }
+});
+
+app.delete('/api/materials/:id', requireLogin, async (req, res) => {
+  if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: 'Choose a valid material to delete.' });
+  let connection;
+  let storedFilePath;
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+    const [materials] = await connection.execute(
+      'SELECT material_id, file_path FROM material WHERE material_id = ? AND user_id = ? FOR UPDATE',
+      [req.params.id, req.session.user.id]
+    );
+    if (!materials.length) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Material not found.' });
+    }
+    const materialId = materials[0].material_id;
+    storedFilePath = path.join(uploadDirectory, path.basename(materials[0].file_path));
+
+    const [topicRows] = await connection.execute(
+      'SELECT topic_id FROM topic_material WHERE material_id = ?',
+      [materialId]
+    );
+    const topicIds = topicRows.map(row => row.topic_id);
+
+    const [quizRows] = await connection.execute('SELECT quiz_id FROM quiz WHERE material_id = ?', [materialId]);
+    const quizIds = quizRows.map(row => row.quiz_id);
+    if (quizIds.length) {
+      const quizMarks = quizIds.map(() => '?').join(', ');
+      const [questionRows] = await connection.execute(
+        `SELECT question_id FROM question WHERE quiz_id IN (${quizMarks})`, quizIds
+      );
+      const questionIds = questionRows.map(row => row.question_id);
+      if (questionIds.length) {
+        const questionMarks = questionIds.map(() => '?').join(', ');
+        await connection.execute(`DELETE FROM answer WHERE question_id IN (${questionMarks})`, questionIds);
+      }
+      await connection.execute(`DELETE FROM attempt WHERE quiz_id IN (${quizMarks})`, quizIds);
+      await connection.execute(`DELETE FROM question WHERE quiz_id IN (${quizMarks})`, quizIds);
+      await connection.execute(`DELETE FROM quiz WHERE quiz_id IN (${quizMarks})`, quizIds);
+    }
+
+    if (topicIds.length) {
+      const topicMarks = topicIds.map(() => '?').join(', ');
+      await connection.execute('DELETE FROM topic_material WHERE material_id = ?', [materialId]);
+      const [orphanRows] = await connection.execute(
+        `SELECT t.topic_id FROM topic t
+         WHERE t.topic_id IN (${topicMarks})
+           AND NOT EXISTS (SELECT 1 FROM topic_material tm WHERE tm.topic_id = t.topic_id)
+           AND NOT EXISTS (SELECT 1 FROM question q WHERE q.topic_id = t.topic_id)`,
+        topicIds
+      );
+      const orphanIds = orphanRows.map(row => row.topic_id);
+      if (orphanIds.length) {
+        const orphanMarks = orphanIds.map(() => '?').join(', ');
+        await connection.execute(`DELETE FROM roadmap_item WHERE topic_id IN (${orphanMarks})`, orphanIds);
+        await connection.execute(`DELETE FROM user_topic_assessment WHERE topic_id IN (${orphanMarks})`, orphanIds);
+        await connection.execute(`DELETE FROM topic WHERE topic_id IN (${orphanMarks})`, orphanIds);
+      }
+    }
+
+    await connection.execute('DELETE FROM material WHERE material_id = ? AND user_id = ?', [materialId, req.session.user.id]);
+    await connection.commit();
+    await fs.unlink(storedFilePath).catch(() => {});
+    res.json({ ok: true });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error('Deleting material failed:', error.message);
+    res.status(500).json({ error: 'Could not delete this material and its study records.' });
+  } finally {
+    connection?.release();
   }
 });
 
@@ -777,7 +863,7 @@ app.post('/api/materials/:id/process', requireLogin, async (req, res) => {
     await saveStudyGuide(connection, material.material_id, studyGuide);
     await connection.execute("UPDATE material SET processing_status = 'completed' WHERE material_id = ?", [material.material_id]);
     await connection.commit();
-    finishProgress(res, { material: publicMaterial({ ...material, processing_status: 'completed' }), studyGuide });
+    finishProgress(res, { material: publicMaterial({ ...material, processing_status: 'completed', topic_count: studyGuide.topics.length }), studyGuide });
   } catch (error) {
     if (connection) await connection.rollback();
     if (material && !['completed', 'ready'].includes(String(material.processing_status).toLowerCase())) {
@@ -840,6 +926,7 @@ app.post('/api/materials', requireLogin, (req, res, next) => {
         file_type: file.mimetype || path.extname(file.originalname).slice(1),
         upload_date: new Date(),
         processing_status: initialStatus,
+        topic_count: studyGuide?.topics?.length || 0,
       };
       if (studyGuide) {
         await saveStudyGuide(connection, result.insertId, studyGuide);

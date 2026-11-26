@@ -38,7 +38,7 @@ const questions = [
   { topic: 1, text: 'What does an adaptive learning system use to personalize a student’s next study steps?', options: ['A fixed sequence for every student', 'The student’s assessment performance', 'The file upload date only', 'The number of pages in a document'], answer: 1 },
   { topic: 1, text: 'Which item can be generated from uploaded study material?', options: ['A reviewer and practice quiz', 'A class attendance sheet', 'A public website', 'A payment receipt'], answer: 0 },
   { topic: 2, text: 'What is the purpose of extracting text from an uploaded file?', options: ['To identify concepts and topics', 'To change the file name', 'To share the file publicly', 'To grade a student immediately'], answer: 0 },
-  { topic: 2, text: 'Which formats are accepted by PacePath?', options: ['MP3 only', 'PDF, DOCX, PPTX, TXT, JPG, or PNG', 'ZIP only', 'EXE files'], answer: 1 },
+  { topic: 2, text: 'Which formats are accepted by PacePath?', options: ['MP3 only', 'PDF, DOCX, PPTX, or TXT', 'ZIP only', 'EXE files'], answer: 1 },
   { topic: 3, text: 'What does a quiz attempt record?', options: ['Answers and assessment results', 'Only the student’s display name', 'The browser theme', 'The material file size'], answer: 0 },
   { topic: 3, text: 'When should topic accuracy be updated?', options: ['After a quiz is assessed', 'When the student opens the site', 'When a file is renamed', 'At random intervals'], answer: 0 },
   { topic: 4, text: 'A topic has 30% accuracy. What should the roadmap generally do?', options: ['Prioritize more review for the topic', 'Mark it mastered', 'Remove it from the material', 'Skip all practice questions'], answer: 0 },
@@ -339,9 +339,9 @@ async function submitQuiz() {
   } catch (error) { notify(error.message); }
 }
 function addFiles(files) {
-  const allowed = ['pdf', 'docx', 'pptx', 'txt', 'jpg', 'jpeg', 'png'];
+  const allowed = ['pdf', 'docx', 'pptx', 'txt'];
   const selected = [...files].filter(file => allowed.includes(file.name.split('.').pop().toLowerCase()));
-  if (selected.length !== files.length) notify('Supported files: PDF, DOCX, PPTX, TXT, JPG, JPEG, and PNG.');
+  if (selected.length !== files.length) notify('Supported study materials: PDF, DOCX, PPTX, and TXT.');
   state.pendingFiles = selected;
   render();
 }

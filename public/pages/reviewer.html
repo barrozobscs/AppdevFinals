@@ -1,0 +1,84 @@
+<template data-variant="empty">
+{{0}}{{1}}
+</template>
+
+
+
+<template data-variant="guide">
+  
+{{0}}
+  <div class="grid review-layout">
+    <aside class="card topic-sidebar">
+      <div class="field"><label for="material-select">Material</label><select class="select" id="material-select">{{1}}</select></div>
+      <div class="eyebrow">Topics ({{2}})</div>
+      <div class="topic-list">{{3}}</div>
+      <button class="button" data-action="open-quiz">Take AI quiz</button>
+    </aside>
+    <article class="card">
+      <div class="breadcrumbs">Materials / <b>{{4}}</b></div>
+      <div class="review-header">
+        <div>
+          <h2>{{5}}</h2>
+          <span class="small-text">{{6}}</span>
+        </div>
+        <span class="badge">AI generated</span>
+      </div>
+      <div class="review-tabs"><button class="{{7}}" data-action="review-mode" data-mode="reviewer">Study guide</button><button class="{{8}}" data-action="review-mode" data-mode="flashcards">Flashcards</button></div>
+      {{9}}
+      <div class="button-row"><button class="button secondary" data-screen="materials">Back to materials</button></div>
+    </article>
+  </div>
+  
+
+</template>
+
+
+
+<template data-variant="extracted-text">
+  
+{{0}}
+  <article class="card">
+    <div class="breadcrumbs">Materials / <b>{{1}}</b></div>
+    <div class="review-header">
+      <div>
+        <h2>Extracted study text</h2>
+        <span class="small-text">Extracted from your uploaded file</span>
+      </div>
+      <span class="badge">Ready</span>
+    </div>
+    <pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.7;color:#586f85;margin-top:18px">{{2}}</pre>
+    <div class="button-row"><button class="button" data-action="regenerate">Generate AI study guide</button><button class="button secondary" data-screen="materials">Back to materials</button></div>
+  </article>
+  
+
+</template>
+
+
+
+<template data-variant="topics">
+  
+{{0}}
+  <div class="grid review-layout">
+    <aside class="card topic-sidebar">
+      <div class="field"><label for="material-select">Material</label><select class="select" id="material-select">{{1}}</select></div>
+      <div class="eyebrow">Topics in this material ({{2}})</div>
+      <div class="topic-list">{{3}}</div>
+      <button class="button" data-action="open-quiz">Take quiz on this material</button>
+    </aside>
+    <article class="card">
+      <div class="breadcrumbs">Materials / <b>{{4}}</b></div>
+      <div class="review-header">
+        <div>
+          <h2>Reviewer</h2>
+          <span class="small-text">From {{5}}</span>
+        </div>
+        <span class="badge">Ready</span>
+      </div>
+      <div class="review-tabs"><button class="{{6}}" data-action="review-mode" data-mode="reviewer">Reviewer</button><button class="{{7}}" data-action="review-mode" data-mode="flashcards">Flashcards</button></div>
+      {{8}}
+      <div class="button-row">{{9}}<button class="button secondary" data-screen="materials">Back to materials</button></div>
+    </article>
+  </div>
+  
+
+</template>

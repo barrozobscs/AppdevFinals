@@ -1,0 +1,24 @@
+{{0}}
+<article class="card profile-card">
+  <div class="profile-photo" style="display:grid!important;grid-template-columns:70px minmax(0,1fr)!important;align-items:start!important;gap:18px!important">
+    <div class="profile-photo-avatar" style="display:flex!important;align-items:flex-start!important;min-width:0">{{1}}</div>
+    <div class="profile-photo-content" style="min-width:0;align-self:start;display:flex;align-items:center;gap:24px">
+      <div class="profile-photo-controls" style="flex:none">
+        <h2>Profile photo</h2>
+        <input id="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden><button class="button secondary profile-photo-button" type="button" data-action="choose-profile-photo">Choose photo</button>
+      </div>
+      <p style="flex:1;min-width:0;margin:0;font-size:13px;line-height:1.45;color:#526b80">Choose a JPG, PNG, or WebP image (up to 4 MB). Your photo preview updates here and saves with your profile.</p>
+    </div>
+  </div>
+  <div class="profile-heading">
+    <div>
+      <h2>Personal information</h2>
+      <p>{{2}}</p>
+    </div>
+  </div>
+  <form id="profile-form">
+    <div class="field"><label for="profile-name">Full name</label><input id="profile-name" name="fullName" type="text" maxlength="200" autocomplete="name" value="{{3}}" required></div>
+    <div class="field profile-email-field"><label for="profile-email">Email address</label><input id="profile-email" type="email" value="{{4}}" {{5}} readonly aria-describedby="email-readonly-note"><small id="email-readonly-note">{{6}}</small></div>
+    <div class="profile-actions"><button class="button" type="submit">Save profile</button><button class="button secondary" type="button" data-screen="materials">Cancel</button></div>
+  </form>
+</article>

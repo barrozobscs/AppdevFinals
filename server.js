@@ -11,7 +11,6 @@ const multer = require('multer');
 const AdmZip = require('adm-zip');
 const { XMLParser } = require('fast-xml-parser');
 const pdfParse = require('pdf-parse');
-const { createWorker } = require('tesseract.js');
 const OpenAI = require('openai');
 const passport = require('passport');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
@@ -26,7 +25,7 @@ const secureCookies = new URL(appBaseUrl).protocol === 'https:';
 if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
 const uploadDirectory = path.join(__dirname, 'uploads');
 const profilePictureDirectory = path.join(uploadDirectory, 'profile-pictures');
-const allowedExtensions = new Set(['.pdf', '.docx', '.pptx', '.txt', '.jpg', '.jpeg', '.png']);
+const allowedExtensions = new Set(['.pdf', '.docx', '.pptx', '.txt']);
 const diskStorage = multer.diskStorage({
   destination: (_req, _file, callback) => callback(null, uploadDirectory),
   filename: (_req, file, callback) => callback(null, `${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`),
@@ -36,7 +35,7 @@ const receiveFiles = multer({
   limits: { fileSize: 20 * 1024 * 1024, files: 10 },
   fileFilter: (_req, file, callback) => {
     if (!allowedExtensions.has(path.extname(file.originalname).toLowerCase())) {
-      return callback(new Error('Supported files: PDF, DOCX, PPTX, TXT, JPG, JPEG, and PNG.'));
+      return callback(new Error('Supported study materials: PDF, DOCX, PPTX, and TXT.'));
     }
     callback(null, true);
   },
@@ -181,15 +180,7 @@ async function extractMaterialText(filePath, fileName) {
   } else if (extension === '.pdf') {
     const pdf = await pdfParse(await fs.readFile(filePath));
     text = pdf.text;
-    if (!text?.trim()) throw new Error('No selectable text was found in this PDF. Scanned PDFs are not supported yet; try uploading a JPG or PNG page instead.');
-  } else if (['.jpg', '.jpeg', '.png'].includes(extension)) {
-    const worker = await createWorker('eng');
-    try {
-      const result = await worker.recognize(filePath);
-      text = result.data.text;
-    } finally {
-      await worker.terminate();
-    }
+    if (!text?.trim()) throw new Error('No selectable text was found in this PDF. Scanned PDFs and image-only documents are not supported yet.');
   } else {
     throw new Error('This file type is not supported.');
   }

@@ -1,0 +1,44 @@
+{{0}}
+<div class="grid gap-stats">
+  <article class="card gap-stat"><label>Topics assessed</label><strong>{{1}}</strong><span class="small-text">In selected materials</span></article>
+  <article class="card gap-stat"><label>Overall accuracy</label><strong>{{2}}%</strong><span class="small-text">Across assessed topics</span></article>
+  <article class="card gap-stat"><label>Weak topics</label><strong>{{3}}</strong><span class="small-text">Below 50%</span></article>
+  <article class="card gap-stat"><label>Mastered topics</label><strong>{{4}}</strong><span class="small-text">80% and above</span></article>
+</div>
+<div class="grid gap-layout">
+  <article class="card gap-accuracy-card">
+    <div class="card-title">
+      <h2>Accuracy by topic</h2>
+      <span class="small-text">Last assessed</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table accuracy-table">
+        <thead>
+          <tr>
+            <th>Topic</th>
+            <th>Answered</th>
+            <th>Correct</th>
+            <th>Accuracy</th>
+            <th>Mastery</th>
+            <th>Last assessed</th>
+          </tr>
+        </thead>
+        <tbody>{{5}}</tbody>
+      </table>
+    </div>
+    <p class="small-text" style="margin:12px 0 0">Weak below 50% · Developing 50–79% · Mastered 80% and above</p>
+  </article>
+  <article class="card score-attempts-card">
+    <div class="card-title">
+      <h2>Score over attempts</h2>
+    </div>
+    {{6}}
+  </article>
+  <article class="card needs-focus-card">
+    <div class="card-title">
+      <h2>Needs focus</h2>
+    </div>
+    <div class="needs-focus-list">{{7}}</div>
+    <button class="button" style="width:100%;margin-top:10px" data-action="update-roadmap" {{8}}>Update my roadmap</button>
+  </article>
+</div>

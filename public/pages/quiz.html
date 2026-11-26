@@ -1,0 +1,49 @@
+<template data-variant="empty">
+{{0}}{{1}}
+</template>
+
+
+
+<template data-variant="unavailable">
+  
+{{0}}
+  <article class="card">No quiz questions are available yet.</article>
+  
+
+</template>
+
+
+
+<template data-variant="active">
+  
+{{0}}
+  <article class="card quiz-summary">
+    <div class="quiz-meta">
+      <div>
+        <strong class="quiz-name">Material recall quiz</strong>
+        <div class="small-text">Questions based on extracted study text</div>
+      </div>
+      <div class="quiz-timer" role="timer" aria-label="Quiz time elapsed"><span>TIME ELAPSED</span><strong id="timer">{{1}}</strong></div>
+    </div>
+    <div class="quiz-meta quiz-progress-label"><span class="small-text">Question {{2}} of {{3}}</span><span class="small-text">{{4}}%</span></div>
+    <div class="quiz-progress"><i style="width:{{5}}%"></i></div>
+  </article>
+  <div class="grid quiz-layout">
+    <article class="card question-card">
+      <div class="question-label"><span>Multiple choice</span><span>{{6}} points</span><span>{{7}}</span></div>
+      <h2 class="question-text">{{8}}</h2>
+      <div class="answers">{{9}}</div>
+      <div class="question-controls"><button class="button secondary" data-action="previous" {{10}}>← Previous</button><button class="button" data-action="next">{{11}}</button></div>
+    </article>
+    <aside class="card quiz-question-list">
+      <div class="card-title">
+        <h2>Questions</h2>
+        <span class="small-text">{{12}} answered</span>
+      </div>
+      <div class="question-grid">{{13}}</div>
+      <div class="legend"><span><i class="answered"></i> Answered</span><span><i class="current"></i> Current</span><span><i class="empty"></i> Not answered</span></div>
+    </aside>
+  </div>
+  
+
+</template>

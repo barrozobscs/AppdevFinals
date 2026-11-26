@@ -1,0 +1,26 @@
+<template data-variant="empty">
+{{0}}{{1}}
+</template>
+
+
+
+<template data-variant="plan">
+  
+{{0}}
+  <article class="card roadmap-plan">
+    <div class="roadmap-head">
+      <div>
+        <h2>Personal learning plan <span class="badge" style="margin-left:7px">Active</span></h2>
+        <span class="small-text">Updated {{1}} · {{2}} waypoints</span>
+      </div>
+      <strong class="roadmap-count">{{3}} of {{4}} steps done</strong>
+    </div>
+    <div class="roadmap-progress" style="margin:14px 0 4px"><i style="width:{{5}}%"></i></div>
+    <div class="roadmap-path" aria-label="Study roadmap with {{6}} topic waypoints">
+      {{7}}
+      <div class="roadmap-route-grid" style="--route-row-height:{{8}}px">{{9}}</div>
+    </div>
+  </article>
+  
+
+</template>

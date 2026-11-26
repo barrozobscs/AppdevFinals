@@ -1,0 +1,42 @@
+<template data-variant="empty">
+{{0}}{{1}}
+</template>
+
+
+
+<template data-variant="summary">
+  
+{{0}}
+  <div class="grid result-stats">
+    <article class="card result-stat"><label>Score</label><strong>{{1}} / {{2}}</strong></article>
+    <article class="card result-stat"><label>Percentage</label><strong>{{3}}%</strong></article>
+    <article class="card result-stat"><label>Time taken</label><strong>{{4}}</strong></article>
+  </div>
+  <div class="grid result-layout">
+    <div class="grid">
+      <article class="card">
+        <div class="card-title">
+          <h2>Performance by topic</h2>
+          <span class="small-text">{{5}} of {{6}} answered</span>
+        </div>
+        {{7}}
+      </article>
+      <article class="card">
+        <div class="card-title">
+          <h2>Answer review</h2>
+          <span class="small-text">{{8}}</span>
+        </div>
+        {{9}}<button class="link-button" data-action="toggle-answers">{{10}}</button>
+      </article>
+    </div>
+    <aside class="grid">
+      <article class="card">
+        <h2>What next?</h2>
+        <p class="small-text">Your results update your topic analysis and roadmap.</p>
+        <button class="button" style="width:100%;margin:5px 0" data-screen="gaps">View gap analysis</button><button class="button secondary" style="width:100%;margin:5px 0" data-action="retake">Retake quiz</button><button class="button secondary" style="width:100%;margin:5px 0" data-screen="materials">Back to materials</button>
+      </article>
+    </aside>
+  </div>
+  
+
+</template>

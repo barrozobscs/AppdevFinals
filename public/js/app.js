@@ -115,6 +115,15 @@ function timerText() {
 }
 function activeQuestions() { return state.quizQuestions.length ? state.quizQuestions : questions; }
 
+function showLoadingScreen(message) {
+  root.innerHTML = `<main class="app-loading" role="status" aria-label="${message}">
+    <span class="app-loading-mark" aria-hidden="true">P</span>
+    <span class="app-loading-spinner" aria-hidden="true"></span>
+    <strong>PacePath</strong>
+    <p>${message}</p>
+  </main>`;
+}
+
 function render() {
   if (state.screen === 'welcome') root.innerHTML = welcome();
   else if (state.screen === 'auth') root.innerHTML = authPage();
@@ -223,8 +232,10 @@ async function restoreSession() {
     save();
     state.screen = 'materials';
     render();
+    return true;
   } catch (error) {
     if (error.status !== 401) notify(error.message);
+    return false;
   }
 }
 async function logoutAccount() {
@@ -456,6 +467,7 @@ root.addEventListener('click', event => {
     }
     case 'choose-profile-photo': root.querySelector('#profile-photo-input')?.click(); break;
     case 'social-login': {
+      showLoadingScreen(`Connecting to ${action.dataset.provider}…`);
       window.location.assign(`/auth/${action.dataset.provider.toLowerCase()}`);
       break;
     }
@@ -510,9 +522,10 @@ root.addEventListener('submit', event => {
   if (event.target.id === 'login-form') {
     const email = root.querySelector('#login-email').value.trim();
     const password = root.querySelector('#login-password').value;
+    showLoadingScreen('Signing you in…');
     apiRequest('/api/login', { method: 'POST', body: JSON.stringify({ email, password }) })
       .then(({ user }) => enterAccount(user))
-      .catch(error => notify(error.message));
+      .catch(error => { state.screen = 'auth'; render(); notify(error.message); });
   }
   if (event.target.id === 'register-form') {
     const name = root.querySelector('#register-name').value.trim();
@@ -521,9 +534,10 @@ root.addEventListener('submit', event => {
     const confirmPassword = root.querySelector('#register-confirm').value;
     if (password !== confirmPassword) { notify('Passwords do not match.'); return; }
     if (!root.querySelector('#privacy-consent').checked) { notify('Please review and accept the privacy notice.'); return; }
+    showLoadingScreen('Creating your account…');
     apiRequest('/api/register', { method: 'POST', body: JSON.stringify({ fullName: name, email, password, privacyConsent: true }) })
       .then(({ user }) => enterAccount(user))
-      .catch(error => notify(error.message));
+      .catch(error => { state.screen = 'auth'; render(); notify(error.message); });
   }
 });
 

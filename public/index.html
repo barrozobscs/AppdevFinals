@@ -10,14 +10,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css?v=inter-font-1">
+  <script>try{if(localStorage.getItem('pacePathTheme')==='dark')document.documentElement.dataset.theme='dark'}catch{}</script>
+  <link rel="stylesheet" href="/css/styles.css?v=login-loader-1">
   <script src="/js/page-templates.js?v=page-templates-1" defer></script>
-  <script src="/js/app.js?v=page-templates-1" defer></script>
+  <script src="/js/app.js?v=login-loader-1" defer></script>
   <script src="/js/page-renderers.js?v=page-templates-1" defer></script>
-  <script src="/js/app-bootstrap.js?v=page-templates-1" defer></script>
+  <script src="/js/app-bootstrap.js?v=login-loader-1" defer></script>
 </head>
 <body>
-  <div id="app" aria-live="polite"></div>
+  <div id="app" aria-live="polite">
+    <main class="app-loading" role="status" aria-label="Loading PacePath">
+      <span class="app-loading-mark" aria-hidden="true">P</span>
+      <span class="app-loading-spinner" aria-hidden="true"></span>
+      <strong>PacePath</strong>
+      <p>Preparing your study space…</p>
+    </main>
+  </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

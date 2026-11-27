@@ -440,6 +440,17 @@ html:not([data-theme="dark"]) body .welcome-home-button{background:#245f96!impor
 html:not([data-theme="dark"]) body .welcome-home-button:hover{background:#194b7b!important;border-color:#194b7b!important;color:#fff!important}
 html[data-theme="dark"] body .welcome-home-button{background:#2868a8!important;border-color:#4d8cc5!important;color:#fff!important}
 html[data-theme="dark"] body .welcome-home-button:hover{background:#347fbe!important;border-color:#70addd!important;color:#fff!important}
+
+/* Branded loading state while templates or an account session are resolving. */
+.app-loading{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;background:var(--paper);color:var(--navy);text-align:center}
+.app-loading-mark{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:linear-gradient(145deg,#397fbe,#174b85);color:#fff;font-size:25px;font-weight:800;box-shadow:0 8px 22px rgba(37,99,166,.22)}
+.app-loading-spinner{width:28px;height:28px;border:3px solid #dbe6f0;border-top-color:#2d70b4;border-radius:50%;animation:pacepath-spin .75s linear infinite}
+.app-loading strong{font-size:18px;letter-spacing:-.02em}
+.app-loading p{margin:0;color:var(--muted);font-size:14px}
+html[data-theme="dark"] .app-loading{background:#101821;color:#e3ebf4}
+html[data-theme="dark"] .app-loading-spinner{border-color:#334357;border-top-color:#78b7ed}
+@keyframes pacepath-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.app-loading-spinner{animation-duration:1.8s}}
 html[data-theme="dark"] body .preview-stat,html[data-theme="dark"] body .preview-float{background:#1d2b3a;border-color:var(--border-strong)}
 html[data-theme="dark"] body :is(.preview-top strong,.preview-greeting strong,.preview-stat b,.preview-file strong,.preview-float b){color:var(--text-primary)}
 html[data-theme="dark"] body :is(.preview-top strong small,.preview-greeting span,.preview-stat>span,.preview-stat small,.preview-file small,.preview-module-head span,.preview-progress-label,.preview-float small){color:var(--text-secondary)}

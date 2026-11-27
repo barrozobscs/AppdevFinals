@@ -451,6 +451,14 @@ html[data-theme="dark"] .app-loading{background:#101821;color:#e3ebf4}
 html[data-theme="dark"] .app-loading-spinner{border-color:#334357;border-top-color:#78b7ed}
 @keyframes pacepath-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.app-loading-spinner{animation-duration:1.8s}}
+
+/* Make quiz navigator progress states distinct and high contrast in dark mode. */
+html[data-theme="dark"] body .quiz-question-list .question-number:not(.answered):not(.current){background:#202f3e!important;border-color:#506176!important;color:#edf3fa!important}
+html[data-theme="dark"] body .quiz-question-list .question-number.answered:not(.current){background:#155b69!important;border-color:#2fa9ba!important;color:#fff!important;box-shadow:0 2px 8px rgba(22,169,186,.2)}
+html[data-theme="dark"] body .quiz-question-list .question-number.current{background:#2868a8!important;border-color:#6db7fa!important;color:#fff!important;box-shadow:0 0 0 2px rgba(109,183,250,.2)}
+html[data-theme="dark"] body .quiz-question-list .legend i.answered{background:#2fa9ba!important}
+html[data-theme="dark"] body .quiz-question-list .legend i.current{background:#4a9be1!important}
+html[data-theme="dark"] body .quiz-question-list .legend i.empty{background:transparent!important;border-color:#8394a7!important}
 html[data-theme="dark"] body .preview-stat,html[data-theme="dark"] body .preview-float{background:#1d2b3a;border-color:var(--border-strong)}
 html[data-theme="dark"] body :is(.preview-top strong,.preview-greeting strong,.preview-stat b,.preview-file strong,.preview-float b){color:var(--text-primary)}
 html[data-theme="dark"] body :is(.preview-top strong small,.preview-greeting span,.preview-stat>span,.preview-stat small,.preview-file small,.preview-module-head span,.preview-progress-label,.preview-float small){color:var(--text-secondary)}
